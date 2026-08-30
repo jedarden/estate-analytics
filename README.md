@@ -1,7 +1,13 @@
 # estate-analytics
 
-Daily, **deduplicated** analytics snapshots for the jedarden estate, stored in
-Postgres (the `cnpg-ardenone` CNPG cluster on ardenone-cluster).
+Archives GitHub traffic beyond GitHub's rolling 14-day window, alongside
+optional Google Search Console and Cloudflare Web Analytics data. Daily,
+**deduplicated** snapshots are stored in Postgres so overlapping collection
+windows update existing rows instead of double-counting them.
+
+> **Author's deployment:** the checked-in defaults and operations notes target
+> the jedarden estate and its `cnpg-ardenone` cluster. Reusers should supply
+> their own owner, database, and source credentials.
 
 A single long-lived collector (Deployment with an internal daily scheduler — no
 k8s CronJobs in this estate) pulls three sources and upserts into tables keyed
@@ -41,6 +47,10 @@ Argo WorkflowTemplate on iad-ci (VERSION auto-bump flow). Manifests live in
 CNPG `Database`/role/ExternalSecret in `k8s/ardenone-cluster/cnpg/`.
 
 Local dev: `pip install -r requirements-dev.txt && PYTHONPATH=src pytest tests/`
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 ---
 
