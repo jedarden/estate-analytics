@@ -6,13 +6,33 @@ successful run is older than CATCHUP_AFTER_HOURS (self-heal after downtime).
 Sources with absent credentials are skipped, not fatal.
 
   /health -> 200 as soon as the process is up (liveness)
-  /ready  -> 503 until the first successful cycle (readiness)
+  /ready  -> 503 until the schema is ensured and the loop is running (readiness)
 """
 import datetime as dt, http.server, json, os, threading, time, traceback
 from . import store
 from .sources import github_traffic, gsc, cf_rum
 
-STATE = {"ready": False, "last": None}
+STATE = {"started": False, "collected": False, "last": None}
+
+def probe(path, state=None):
+    """Map a probe path to (status code, payload).
+
+    Readiness means the process is functional -- schema ensured, loop running --
+    NOT that it has already collected. A pod deployed outside its run window has
+    nothing legitimately to do for hours, so gating readiness on a completed
+    cycle marks a healthy collector NotReady and trips ProgressDeadlineExceeded
+    on every deploy that lands outside that window. Whether a cycle has run is
+    reported in the payload instead, where it is information rather than an
+    availability signal.
+    """
+    s = STATE if state is None else state
+    if path == "/health":
+        code = 200
+    elif path == "/ready":
+        code = 200 if s["started"] else 503
+    else:
+        code = 404
+    return code, {"started": s["started"], "collected": s["collected"], "last": s["last"]}
 
 def _env(name, default=None):
     v = os.environ.get(name, default)
@@ -55,15 +75,10 @@ def _run(dsn, results, name, fn):
 
 class Health(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/health":
-            code = 200
-        elif self.path == "/ready":
-            code = 200 if STATE["ready"] else 503
-        else:
-            code = 404
+        code, payload = probe(self.path)
         self.send_response(code)
         self.end_headers()
-        self.wfile.write(json.dumps({"ready": STATE["ready"], "last": STATE["last"]}).encode())
+        self.wfile.write(json.dumps(payload).encode())
     def log_message(self, *a):
         pass
 
@@ -75,6 +90,7 @@ def main():
         target=lambda: http.server.HTTPServer(("", 8080), Health).serve_forever(),
         daemon=True).start()
     store.ensure_schema(dsn)
+    STATE["started"] = True
     print("schema ensured; entering loop", flush=True)
     last_run_date = None
     while True:
@@ -88,7 +104,7 @@ def main():
             last_run_date = now.date()
             STATE["last"] = {"at": now.isoformat(), "results": {k: str(v) for k, v in results.items()}}
             if any(isinstance(v, int) for v in results.values()):
-                STATE["ready"] = True
+                STATE["collected"] = True
         time.sleep(300)
 
 if __name__ == "__main__":
