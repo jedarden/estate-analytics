@@ -6,6 +6,10 @@ def ensure_schema(dsn):
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         for ddl in schema.DDL:
             cur.execute(ddl)
+        # DDL creates tables that are absent; migrations reshape ones that are
+        # already there. Both are idempotent, so this runs every startup.
+        for mig in schema.MIGRATIONS:
+            cur.execute(mig)
 
 def upsert(dsn, table_rows):
     """table_rows: {table: [row_tuple, ...]}. Returns total rows upserted."""

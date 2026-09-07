@@ -18,7 +18,7 @@ of duplicating them:
 |---|---|---|---|
 | GitHub traffic (all public non-fork repos) | trailing 14 days | `repo_traffic_daily`, `repo_referrers_daily`, `repo_paths_daily` | `(repo, day)` / `(snapshot_day, repo, referrer\|path)` |
 | Google Search Console (armed; needs SA key) | trailing 7 days | `gsc_daily` | `(day, page, query)` |
-| Cloudflare Web Analytics RUM (armed; needs token) | trailing 3 days | `cf_rum_daily` | `(day, path, referer_host)` |
+| Cloudflare Web Analytics RUM (armed; needs token) | trailing 3 days | `cf_rum_daily` | `(day, host, path, referer_host)` |
 
 Counts for a still-elapsing day only grow, so those upserts take `GREATEST`.
 Every run is logged to `collect_runs`; startup runs a catch-up cycle if the last

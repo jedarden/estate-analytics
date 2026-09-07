@@ -39,12 +39,16 @@ DDL = [
         position    double precision NOT NULL,
         PRIMARY KEY (day, page, query)
     )""",
+    # host is part of the PK because the Cloudflare token is account-scoped and
+    # the account serves several unrelated sites. Without it, every site's "/"
+    # collapses into one row.
     """CREATE TABLE IF NOT EXISTS cf_rum_daily (
         day          date    NOT NULL,
+        host         text    NOT NULL DEFAULT '',
         path         text    NOT NULL,
         referer_host text    NOT NULL DEFAULT '',
         pageviews    integer NOT NULL,
-        PRIMARY KEY (day, path, referer_host)
+        PRIMARY KEY (day, host, path, referer_host)
     )""",
     """CREATE TABLE IF NOT EXISTS collect_runs (
         id            bigserial   PRIMARY KEY,
@@ -87,8 +91,31 @@ UPSERTS = {
             clicks = EXCLUDED.clicks, impressions = EXCLUDED.impressions,
             position = EXCLUDED.position""",
     "cf_rum_daily": """
-        INSERT INTO cf_rum_daily (day, path, referer_host, pageviews)
-        VALUES (%s, %s, %s, %s)
-        ON CONFLICT (day, path, referer_host) DO UPDATE SET
+        INSERT INTO cf_rum_daily (day, host, path, referer_host, pageviews)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (day, host, path, referer_host) DO UPDATE SET
             pageviews = GREATEST(cf_rum_daily.pageviews, EXCLUDED.pageviews)""",
 }
+
+# Idempotent, run after DDL. CREATE TABLE IF NOT EXISTS cannot reshape a table
+# that already exists, so widening cf_rum_daily's primary key needs this.
+# Existing rows (if any) predate the host dimension and take host='', which
+# preserves uniqueness under the wider key, so the PK swap cannot fail on
+# duplicates.
+MIGRATIONS = [
+    "ALTER TABLE cf_rum_daily ADD COLUMN IF NOT EXISTS host text NOT NULL DEFAULT ''",
+    """DO $$
+       BEGIN
+         IF NOT EXISTS (
+           SELECT 1
+           FROM pg_index i
+           JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+           WHERE i.indrelid = 'cf_rum_daily'::regclass
+             AND i.indisprimary
+             AND a.attname = 'host'
+         ) THEN
+           ALTER TABLE cf_rum_daily DROP CONSTRAINT IF EXISTS cf_rum_daily_pkey;
+           ALTER TABLE cf_rum_daily ADD PRIMARY KEY (day, host, path, referer_host);
+         END IF;
+       END $$""",
+]

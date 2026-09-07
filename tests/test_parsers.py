@@ -28,7 +28,35 @@ def test_github_traffic_merges_views_and_clones_per_day():
 
 def test_cf_rum_rows_and_null_referer():
     payload = {"data": {"viewer": {"accounts": [{"rumPageloadEventsAdaptiveGroups": [
-        {"count": 7, "dimensions": {"date": "2026-08-23", "requestPath": "/", "refererHost": None}}]}]}}}
+        {"count": 7, "dimensions": {"date": "2026-08-23", "requestHost": "jedarden.com",
+                                    "requestPath": "/", "refererHost": None}}]}]}}}
     with mock.patch.object(cf_rum, "get_json", lambda *a, **k: payload):
         out = cf_rum.collect("t", "acct", today=TODAY)
-    assert out["cf_rum_daily"] == [("2026-08-23", "/", "", 7)]
+    assert out["cf_rum_daily"] == [("2026-08-23", "jedarden.com", "/", "", 7)]
+
+def test_cf_rum_keeps_hosts_distinct():
+    """The account serves several sites. Two homepages on the same day must stay
+    two rows -- collapsing them is the bug this dimension exists to prevent."""
+    payload = {"data": {"viewer": {"accounts": [{"rumPageloadEventsAdaptiveGroups": [
+        {"count": 30, "dimensions": {"date": "2026-09-06", "requestHost": "jedarden.com",
+                                     "requestPath": "/", "refererHost": None}},
+        {"count": 31, "dimensions": {"date": "2026-09-06", "requestHost": "halfonadouble.com",
+                                     "requestPath": "/", "refererHost": None}}]}]}}}
+    with mock.patch.object(cf_rum, "get_json", lambda *a, **k: payload):
+        out = cf_rum.collect("t", "acct", today=TODAY)
+    rows = out["cf_rum_daily"]
+    assert len(rows) == 2
+    assert {r[1] for r in rows} == {"jedarden.com", "halfonadouble.com"}
+    # Same (day, path, referer) triple -- only host separates them.
+    assert len({(r[0], r[2], r[3]) for r in rows}) == 1
+
+def test_cf_rum_requests_the_host_dimension():
+    """A query missing requestHost makes Cloudflare pre-aggregate across sites,
+    which no amount of downstream schema can undo."""
+    captured = {}
+    def fake(url, headers, method=None, body=None):
+        captured["body"] = body
+        return {"data": {"viewer": {"accounts": [{"rumPageloadEventsAdaptiveGroups": []}]}}}
+    with mock.patch.object(cf_rum, "get_json", fake):
+        cf_rum.collect("t", "acct", today=TODAY)
+    assert "requestHost" in captured["body"]["query"]
