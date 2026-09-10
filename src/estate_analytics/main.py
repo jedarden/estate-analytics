@@ -9,7 +9,7 @@ Sources with absent credentials are skipped, not fatal.
   /ready  -> 503 until the schema is ensured and the loop is running (readiness)
 """
 import datetime as dt, http.server, json, os, threading, time, traceback
-from . import store
+from . import store, publish as publish_mod
 from .sources import github_traffic, gsc, cf_rum
 
 STATE = {"started": False, "collected": False, "last": None}
@@ -60,7 +60,43 @@ def run_cycle(dsn):
                                     days=int(_env("CF_DAYS", "3"))))
     else:
         print("cf_rum: no CF_ANALYTICS_TOKEN, skipped", flush=True)
+    _publish_dashboard(dsn, results)
     return results
+
+
+def _publish_dashboard(dsn, results):
+    """Push the dashboard.ardenone.com panel datasets to the Garage bucket.
+
+    Absent credentials skip the publish rather than failing the cycle -- the
+    collection legs are the product, the panel is a view of them. A publish
+    failure is likewise logged and swallowed: it must never cost a cycle whose
+    data already landed in Postgres.
+    """
+    bucket = _env("DEST_S3_BUCKET")
+    key_id = _env("DEST_S3_ACCESS_KEY_ID")
+    if not (bucket and key_id):
+        print("publish: no DEST_S3_BUCKET/ACCESS_KEY_ID, skipped", flush=True)
+        return
+    try:
+        import boto3
+        from botocore.config import Config
+        import psycopg
+        s3 = boto3.client(
+            "s3",
+            endpoint_url=_env("DEST_S3_ENDPOINT"),
+            aws_access_key_id=key_id,
+            aws_secret_access_key=_env("DEST_S3_SECRET_ACCESS_KEY"),
+            region_name=_env("DEST_S3_REGION", "garage"),
+            config=Config(s3={"addressing_style": _env("DEST_S3_ADDRESSING_STYLE", "path")}),
+        )
+        with psycopg.connect(dsn) as conn:
+            n = publish_mod.publish(conn, s3, bucket, _env("DEST_S3_PREFIX", "estate-analytics"))
+        store.log_run(dsn, "publish", "ok", n)
+        print(f"publish: wrote {n} objects", flush=True)
+    except Exception as e:
+        store.log_run(dsn, "publish", "error", 0, str(e))
+        print(f"publish: FAILED ({e})", flush=True)
+        traceback.print_exc()
 
 def _run(dsn, results, name, fn):
     try:

@@ -36,8 +36,20 @@ because GitHub retains 14 days).
 | `GSC_SITE` | no (`sc-domain:jedarden.com`) | Search Console property |
 | `CF_ANALYTICS_TOKEN` / `CF_ACCOUNT_ID` | optional | CF GraphQL RUM access |
 | `RUN_AT_UTC_HOUR` | no (5) | daily run hour, UTC |
+| `DEST_S3_BUCKET` / `DEST_S3_ACCESS_KEY_ID` / `DEST_S3_SECRET_ACCESS_KEY` / `DEST_S3_ENDPOINT` | optional | Garage bucket for the dashboard panel; absent = publish skipped |
+| `DEST_S3_PREFIX` | no (`estate-analytics`) | bucket prefix; datasets land at `<prefix>/data/*.json` |
 
 Absent optional credentials skip that source with a log line — never a crash.
+
+## Dashboard publish
+
+After each cycle the collector writes the panel datasets for
+`dashboard.ardenone.com/estate-analytics/` as JSON to the Garage `dashboard-site`
+bucket under `estate-analytics/data/`. That path is deliberately **not** in the
+dashboard-site repo: its CI syncs the repo over the bucket while excluding
+`*/data/*`, so a pod's writes survive a site push. Publishing is skipped when S3
+credentials are absent and a publish failure never fails the cycle — the
+collection legs are the product, the panel is a view of them.
 
 ## Deploy
 
