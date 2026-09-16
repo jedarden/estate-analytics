@@ -25,8 +25,8 @@ class FakeS3:
 
 def _conn():
     return FakeConn({
-        "search": ([(dt.date(2026,9,8), 4, 158, decimal.Decimal("5.6"))],
-                   ["day","clicks","impressions","avg_position"]),
+        "search": ([("sc-domain:devimprint.com", dt.date(2026,9,8), 4, 158, decimal.Decimal("5.6"))],
+                   ["site","day","clicks","impressions","avg_position"]),
         "traffic": ([(dt.date(2026,9,9), "jedarden.com", 30)], ["day","host","pageviews"]),
         "repo-traffic": ([(dt.date(2026,9,9), 100, 40, 3)], ["day","views","uniques","clones"]),
     })
@@ -36,6 +36,7 @@ def test_dates_and_decimals_survive_json():
     ds = publish.collect_datasets(_conn())
     json.dumps(ds)  # must not raise
     assert ds["search"][0]["day"] == "2026-09-08"
+    assert ds["search"][0]["site"] == "sc-domain:devimprint.com"
     assert ds["search"][0]["avg_position"] == 5.6
 
 def test_publish_writes_every_dataset_plus_meta():

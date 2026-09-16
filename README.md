@@ -17,7 +17,7 @@ of duplicating them:
 | Source | Window pulled daily | Table(s) | Dedup key |
 |---|---|---|---|
 | GitHub traffic (all public non-fork repos) | trailing 14 days | `repo_traffic_daily`, `repo_referrers_daily`, `repo_paths_daily` | `(repo, day)` / `(snapshot_day, repo, referrer\|path)` |
-| Google Search Console (armed; needs SA key) | trailing 7 days | `gsc_daily` | `(day, page, query)` |
+| Google Search Console (armed; needs SA key) | trailing 7 days | `gsc_daily` | `(site, day, page, query)` |
 | Cloudflare Web Analytics RUM (armed; needs token) | trailing 3 days | `cf_rum_daily` | `(day, host, path, referer_host)` |
 
 Counts for a still-elapsing day only grow, so those upserts take `GREATEST`.
@@ -33,7 +33,7 @@ because GitHub retains 14 days).
 | `GITHUB_TOKEN` | for GitHub source | token with push access (traffic API is owner-only) |
 | `GITHUB_OWNER` | no (jedarden) | account whose repos are collected |
 | `GSC_SA_JSON` | optional | Google service-account key JSON (content, not a path) |
-| `GSC_SITE` | no (`sc-domain:jedarden.com`) | Search Console property |
+| `GSC_SITES` | no (`sc-domain:jedarden.com`) | comma-separated Search Console properties; `GSC_SITE` remains a legacy fallback |
 | `CF_ANALYTICS_TOKEN` / `CF_ACCOUNT_ID` | optional | CF GraphQL RUM access |
 | `RUN_AT_UTC_HOUR` | no (5) | daily run hour, UTC |
 | `DEST_S3_BUCKET` / `DEST_S3_ACCESS_KEY_ID` / `DEST_S3_SECRET_ACCESS_KEY` / `DEST_S3_ENDPOINT` | optional | Garage bucket for the dashboard panel; absent = publish skipped |

@@ -30,7 +30,7 @@ def collect(sa_json, site, days=7, today=None):
             "rowLimit": 25000}
     out = get_json(f"{API}/sites/{urllib.parse.quote(site, safe='')}/searchAnalytics/query",
                    {"Authorization": f"Bearer {tok}"}, method="POST", body=body)
-    rows = [(r["keys"][0], r["keys"][1], r["keys"][2],
+    rows = [(site, r["keys"][0], r["keys"][1], r["keys"][2],
              int(r["clicks"]), int(r["impressions"]), float(r["position"]))
             for r in out.get("rows", [])]
     return {"gsc_daily": rows}

@@ -30,15 +30,21 @@ QUERIES = {
         GROUP BY snapshot_day, referrer
         ORDER BY snapshot_day, referrer""",
     "search": """
-        SELECT day, SUM(clicks) AS clicks, SUM(impressions) AS impressions,
-               ROUND(AVG(position)::numeric, 1) AS avg_position
-        FROM gsc_daily GROUP BY day ORDER BY day""",
+        SELECT site, day, SUM(clicks) AS clicks, SUM(impressions) AS impressions,
+               ROUND((SUM(position * impressions) / NULLIF(SUM(impressions), 0))::numeric, 1) AS avg_position
+        FROM gsc_daily GROUP BY site, day ORDER BY site, day""",
     "search-queries": """
-        SELECT query, SUM(clicks) AS clicks, SUM(impressions) AS impressions,
-               ROUND(AVG(position)::numeric, 1) AS avg_position
+        SELECT site, query, SUM(clicks) AS clicks, SUM(impressions) AS impressions,
+               ROUND((SUM(position * impressions) / NULLIF(SUM(impressions), 0))::numeric, 1) AS avg_position
         FROM gsc_daily
         WHERE day >= CURRENT_DATE - INTERVAL '90 days'
-        GROUP BY query ORDER BY SUM(impressions) DESC LIMIT 100""",
+        GROUP BY site, query ORDER BY site, SUM(impressions) DESC LIMIT 500""",
+    "search-pages": """
+        SELECT site, page, SUM(clicks) AS clicks, SUM(impressions) AS impressions,
+               ROUND((SUM(position * impressions) / NULLIF(SUM(impressions), 0))::numeric, 1) AS avg_position
+        FROM gsc_daily
+        WHERE day >= CURRENT_DATE - INTERVAL '90 days'
+        GROUP BY site, page ORDER BY site, SUM(impressions) DESC LIMIT 500""",
     "traffic": """
         SELECT day, host, SUM(pageviews) AS pageviews
         FROM cf_rum_daily GROUP BY day, host ORDER BY day, host""",

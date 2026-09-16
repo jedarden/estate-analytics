@@ -38,6 +38,15 @@ def _env(name, default=None):
     v = os.environ.get(name, default)
     return v if v not in ("", None) else default
 
+def _gsc_sites():
+    """Return unique Search Console properties in configured order.
+
+    GSC_SITE remains a compatibility fallback for existing deployments; new
+    multi-property deployments use comma-separated GSC_SITES.
+    """
+    raw = _env("GSC_SITES") or _env("GSC_SITE", "sc-domain:jedarden.com")
+    return list(dict.fromkeys(site.strip() for site in raw.split(",") if site.strip()))
+
 def run_cycle(dsn):
     results = {}
     gh_token = _env("GITHUB_TOKEN")
@@ -48,9 +57,9 @@ def run_cycle(dsn):
         print("github_traffic: no GITHUB_TOKEN, skipped", flush=True)
     sa = _env("GSC_SA_JSON")
     if sa:
-        _run(dsn, results, "gsc",
-             lambda: gsc.collect(sa, _env("GSC_SITE", "sc-domain:jedarden.com"),
-                                 days=int(_env("GSC_DAYS", "7"))))
+        for site in _gsc_sites():
+            _run(dsn, results, f"gsc:{site}",
+                 lambda site=site: gsc.collect(sa, site, days=int(_env("GSC_DAYS", "7"))))
     else:
         print("gsc: no GSC_SA_JSON, skipped", flush=True)
     cf = _env("CF_ANALYTICS_TOKEN")

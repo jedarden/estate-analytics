@@ -1,8 +1,18 @@
 import datetime as dt, json
 from unittest import mock
-from estate_analytics.sources import github_traffic, cf_rum
+from estate_analytics.sources import github_traffic, cf_rum, gsc
 
 TODAY = dt.date(2026, 8, 24)
+
+def test_gsc_rows_include_property_dimension():
+    payload = {"rows": [{"keys": ["2026-08-23", "https://devimprint.com/", "ai coding leaderboard"],
+                         "clicks": 2, "impressions": 19, "position": 3.5}]}
+    with mock.patch.object(gsc, "_token", lambda sa: "token"), \
+         mock.patch.object(gsc, "get_json", lambda *a, **k: payload):
+        out = gsc.collect('{"client_email":"unused"}', "sc-domain:devimprint.com", today=TODAY)
+    assert out["gsc_daily"] == [
+        ("sc-domain:devimprint.com", "2026-08-23", "https://devimprint.com/",
+         "ai coding leaderboard", 2, 19, 3.5)]
 
 def test_github_traffic_merges_views_and_clones_per_day():
     responses = {

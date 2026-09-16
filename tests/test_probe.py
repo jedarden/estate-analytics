@@ -4,7 +4,8 @@ Regression guard for the 2026-09-07 deploy: a pod rolled out at 14:39 UTC with
 RUN_AT_UTC_HOUR=5 and a recent successful cycle had nothing due, never set the
 old STATE["ready"], and tripped ProgressDeadlineExceeded on a healthy collector.
 """
-from estate_analytics.main import probe
+from unittest import mock
+from estate_analytics.main import _gsc_sites, probe
 
 FRESH = {"started": False, "collected": False, "last": None}
 RUNNING = {"started": True, "collected": False, "last": None}
@@ -33,3 +34,13 @@ def test_payload_still_exposes_collection_state():
     assert payload["last"]["at"] == "2026-09-07T05:00:00+00:00"
     _, payload = probe("/ready", RUNNING)
     assert payload["collected"] is False
+
+def test_gsc_sites_supports_multiple_properties_and_deduplicates():
+    with mock.patch.dict("os.environ", {
+        "GSC_SITES": "sc-domain:jedarden.com, sc-domain:devimprint.com,sc-domain:jedarden.com"
+    }, clear=True):
+        assert _gsc_sites() == ["sc-domain:jedarden.com", "sc-domain:devimprint.com"]
+
+def test_gsc_site_remains_a_legacy_fallback():
+    with mock.patch.dict("os.environ", {"GSC_SITE": "sc-domain:example.com"}, clear=True):
+        assert _gsc_sites() == ["sc-domain:example.com"]

@@ -31,13 +31,14 @@ DDL = [
         PRIMARY KEY (snapshot_day, repo, path)
     )""",
     """CREATE TABLE IF NOT EXISTS gsc_daily (
+        site        text             NOT NULL,
         day         date             NOT NULL,
         page        text             NOT NULL,
         query       text             NOT NULL,
         clicks      integer          NOT NULL,
         impressions integer          NOT NULL,
         position    double precision NOT NULL,
-        PRIMARY KEY (day, page, query)
+        PRIMARY KEY (site, day, page, query)
     )""",
     # host is part of the PK because the Cloudflare token is account-scoped and
     # the account serves several unrelated sites. Without it, every site's "/"
@@ -85,9 +86,9 @@ UPSERTS = {
         ON CONFLICT (snapshot_day, repo, path) DO UPDATE SET
             title = EXCLUDED.title, count = EXCLUDED.count, uniques = EXCLUDED.uniques""",
     "gsc_daily": """
-        INSERT INTO gsc_daily (day, page, query, clicks, impressions, position)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        ON CONFLICT (day, page, query) DO UPDATE SET
+        INSERT INTO gsc_daily (site, day, page, query, clicks, impressions, position)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (site, day, page, query) DO UPDATE SET
             clicks = EXCLUDED.clicks, impressions = EXCLUDED.impressions,
             position = EXCLUDED.position""",
     "cf_rum_daily": """
@@ -98,11 +99,28 @@ UPSERTS = {
 }
 
 # Idempotent, run after DDL. CREATE TABLE IF NOT EXISTS cannot reshape a table
-# that already exists, so widening cf_rum_daily's primary key needs this.
-# Existing rows (if any) predate the host dimension and take host='', which
-# preserves uniqueness under the wider key, so the PK swap cannot fail on
-# duplicates.
+# that already exists, so GSC's site dimension and RUM's host dimension need
+# explicit migrations. Their defaults preserve uniqueness under the wider keys,
+# so the primary-key swaps cannot fail on existing rows.
 MIGRATIONS = [
+    # Rows collected before multi-property support all came from jedarden.com.
+    # Giving them that property before widening the PK preserves every row and
+    # prevents a DevImprint page/query tuple from overwriting it.
+    "ALTER TABLE gsc_daily ADD COLUMN IF NOT EXISTS site text NOT NULL DEFAULT 'sc-domain:jedarden.com'",
+    """DO $$
+       BEGIN
+         IF NOT EXISTS (
+           SELECT 1
+           FROM pg_index i
+           JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+           WHERE i.indrelid = 'gsc_daily'::regclass
+             AND i.indisprimary
+             AND a.attname = 'site'
+         ) THEN
+           ALTER TABLE gsc_daily DROP CONSTRAINT IF EXISTS gsc_daily_pkey;
+           ALTER TABLE gsc_daily ADD PRIMARY KEY (site, day, page, query);
+         END IF;
+       END $$""",
     "ALTER TABLE cf_rum_daily ADD COLUMN IF NOT EXISTS host text NOT NULL DEFAULT ''",
     """DO $$
        BEGIN
