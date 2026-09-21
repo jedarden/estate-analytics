@@ -19,6 +19,15 @@ of duplicating them:
 | GitHub traffic (all public non-fork repos) | trailing 14 days | `repo_traffic_daily`, `repo_referrers_daily`, `repo_paths_daily` | `(repo, day)` / `(snapshot_day, repo, referrer\|path)` |
 | Google Search Console (armed; needs SA key) | trailing 7 days | `gsc_daily` | `(site, day, page, query)` |
 | Cloudflare Web Analytics RUM (armed; needs token) | trailing 3 days | `cf_rum_daily` | `(day, host, path, referer_host)` |
+| Cloudflare edge requests, zone-scoped, client-facing only (needs token with Zone Analytics: Read + `CF_ZONES`) | trailing 3 days; 32 on first run | `cf_edge_daily` (crawler classes), `cf_googlebot_paths_daily` (Googlebot by path class), `cf_pages_functions_daily` | `(day, host, agent_class, status_class)` / `(day, host, path_class, status_class)` / `(day, project, status)` |
+| Search Console URL Inspection sample (needs SA key + `GSC_INDEX_SAMPLE`) | weekly, fixed hash-stable sample per page class | `gsc_index_sample` | `(sample_day, site, url)` |
+
+The edge source filters `requestSource: "eyeball"` unconditionally. Cloudflare's
+dataset also carries its own internal records (Pages' Cache API lookups, whose
+misses are logged as 504s by design) under the client's host and user agent;
+without the filter they read as a large client-facing error rate that no client
+received. Cloudflare retains the edge dataset for about a month, which is why it
+is snapshotted at all.
 
 Counts for a still-elapsing day only grow, so those upserts take `GREATEST`.
 Every run is logged to `collect_runs`; startup runs a catch-up cycle if the last
@@ -35,6 +44,11 @@ because GitHub retains 14 days).
 | `GSC_SA_JSON` | optional | Google service-account key JSON (content, not a path) |
 | `GSC_SITES` | no (`sc-domain:jedarden.com`) | comma-separated Search Console properties; `GSC_SITE` remains a legacy fallback |
 | `CF_ANALYTICS_TOKEN` / `CF_ACCOUNT_ID` | optional | CF GraphQL RUM access |
+| `CF_ZONES` | optional | `host=zone_id,...` — enables the edge source for those hosts (token needs Zone Analytics: Read and Cloudflare Pages: Read) |
+| `CF_PATH_CLASSES` | no | `host=/prefix/:class,...;host2=...` — Googlebot path classes per host; robots, sitemap, llms, markdown, home and asset are classified before these |
+| `CF_EDGE_DAYS` / `CF_EDGE_BACKFILL_DAYS` | no (3 / 32) | edge window; the backfill window applies while `cf_edge_daily` is empty |
+| `GSC_INDEX_SAMPLE` | optional | `sc-domain:x=/prefix/:N,...;sc-domain:y=...` — URLs per page class to inspect; enables the weekly sample |
+| `GSC_INDEX_EVERY_DAYS` | no (7) | sample cadence, paced off the last successful `gsc_index` run |
 | `RUN_AT_UTC_HOUR` | no (5) | daily run hour, UTC |
 | `DEST_S3_BUCKET` / `DEST_S3_ACCESS_KEY_ID` / `DEST_S3_SECRET_ACCESS_KEY` / `DEST_S3_ENDPOINT` | optional | Garage bucket for the dashboard panel; absent = publish skipped |
 | `DEST_S3_PREFIX` | no (`estate-analytics`) | bucket prefix; datasets land at `<prefix>/data/*.json` |

@@ -55,6 +55,40 @@ QUERIES = {
     "runs": """
         SELECT source, status, rows_upserted, finished_at
         FROM collect_runs ORDER BY id DESC LIMIT 60""",
+    # Client-facing edge requests by crawler class; 'other' is everything not
+    # matched by a named class and 'empty-ua' is the scanner population.
+    "crawlers": """
+        SELECT day, host, agent_class, status_class, requests
+        FROM cf_edge_daily
+        WHERE day >= CURRENT_DATE - INTERVAL '90 days'
+        ORDER BY day, host, agent_class, status_class""",
+    "googlebot-paths": """
+        SELECT day, host, path_class, status_class, requests, distinct_paths
+        FROM cf_googlebot_paths_daily
+        WHERE day >= CURRENT_DATE - INTERVAL '90 days'
+        ORDER BY day, host, path_class, status_class""",
+    "pages-functions": """
+        SELECT day, project, status, requests, errors, subrequests
+        FROM cf_pages_functions_daily
+        WHERE day >= CURRENT_DATE - INTERVAL '90 days'
+        ORDER BY day, project, status""",
+    # Indexed share per page class per weekly sample. verdict PASS is Google's
+    # "URL is on Google"; coverage_state carries the reason otherwise.
+    "index-sample": """
+        SELECT sample_day, site, page_class, coverage_state,
+               COUNT(*) AS urls,
+               COUNT(*) FILTER (WHERE verdict = 'PASS') AS indexed
+        FROM gsc_index_sample
+        GROUP BY sample_day, site, page_class, coverage_state
+        ORDER BY sample_day, site, page_class, coverage_state""",
+    # The most recent sample's URLs, so a reader can see which pages Google
+    # has and has not taken without a database connection.
+    "index-sample-urls": """
+        SELECT s.sample_day, s.site, s.page_class, s.url, s.verdict, s.coverage_state, s.last_crawl
+        FROM gsc_index_sample s
+        JOIN (SELECT site, MAX(sample_day) AS sample_day FROM gsc_index_sample GROUP BY site) m
+          ON m.site = s.site AND m.sample_day = s.sample_day
+        ORDER BY s.site, s.page_class, s.url""",
 }
 
 def _jsonable(v):
@@ -83,6 +117,8 @@ def build_meta(datasets):
             "search": max((r["day"] for r in datasets["search"]), default=None),
             "traffic": max((r["day"] for r in datasets["traffic"]), default=None),
             "repo_traffic": max((r["day"] for r in datasets["repo-traffic"]), default=None),
+            "crawlers": max((r["day"] for r in datasets.get("crawlers", [])), default=None),
+            "index_sample": max((r["sample_day"] for r in datasets.get("index-sample", [])), default=None),
         },
     }
 

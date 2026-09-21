@@ -51,6 +51,53 @@ DDL = [
         pageviews    integer NOT NULL,
         PRIMARY KEY (day, host, path, referer_host)
     )""",
+    # Zone-scoped edge requests, client-facing only (requestSource eyeball),
+    # by crawler class. Cloudflare keeps this dataset ~32 days; the table is
+    # the durable history. See sources/cf_edge.py for why the filter matters.
+    """CREATE TABLE IF NOT EXISTS cf_edge_daily (
+        day          date    NOT NULL,
+        host         text    NOT NULL,
+        agent_class  text    NOT NULL,
+        status_class text    NOT NULL,
+        requests     integer NOT NULL,
+        PRIMARY KEY (day, host, agent_class, status_class)
+    )""",
+    # Googlebot fetches by path class: "page fetches excluding robots.txt and
+    # sitemaps" is the leading indicator for a new site's indexation.
+    """CREATE TABLE IF NOT EXISTS cf_googlebot_paths_daily (
+        day            date    NOT NULL,
+        host           text    NOT NULL,
+        path_class     text    NOT NULL,
+        status_class   text    NOT NULL,
+        requests       integer NOT NULL,
+        distinct_paths integer NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, host, path_class, status_class)
+    )""",
+    """CREATE TABLE IF NOT EXISTS cf_pages_functions_daily (
+        day         date    NOT NULL,
+        project     text    NOT NULL,
+        status      text    NOT NULL DEFAULT '',
+        requests    integer NOT NULL,
+        errors      integer NOT NULL DEFAULT 0,
+        subrequests integer NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, project, status)
+    )""",
+    # Weekly URL Inspection sample; one row per inspected URL per sample day.
+    # page_class is the configured sitemap prefix the URL was drawn for.
+    """CREATE TABLE IF NOT EXISTS gsc_index_sample (
+        sample_day       date        NOT NULL,
+        site             text        NOT NULL,
+        page_class       text        NOT NULL,
+        url              text        NOT NULL,
+        verdict          text        NOT NULL DEFAULT '',
+        coverage_state   text        NOT NULL DEFAULT '',
+        indexing_state   text        NOT NULL DEFAULT '',
+        page_fetch_state text        NOT NULL DEFAULT '',
+        robots_state     text        NOT NULL DEFAULT '',
+        last_crawl       timestamptz,
+        google_canonical text        NOT NULL DEFAULT '',
+        PRIMARY KEY (sample_day, site, url)
+    )""",
     """CREATE TABLE IF NOT EXISTS collect_runs (
         id            bigserial   PRIMARY KEY,
         started_at    timestamptz NOT NULL DEFAULT now(),
@@ -96,6 +143,36 @@ UPSERTS = {
         VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT (day, host, path, referer_host) DO UPDATE SET
             pageviews = GREATEST(cf_rum_daily.pageviews, EXCLUDED.pageviews)""",
+    "cf_edge_daily": """
+        INSERT INTO cf_edge_daily (day, host, agent_class, status_class, requests)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (day, host, agent_class, status_class) DO UPDATE SET
+            requests = GREATEST(cf_edge_daily.requests, EXCLUDED.requests)""",
+    "cf_googlebot_paths_daily": """
+        INSERT INTO cf_googlebot_paths_daily
+            (day, host, path_class, status_class, requests, distinct_paths)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (day, host, path_class, status_class) DO UPDATE SET
+            requests       = GREATEST(cf_googlebot_paths_daily.requests, EXCLUDED.requests),
+            distinct_paths = GREATEST(cf_googlebot_paths_daily.distinct_paths, EXCLUDED.distinct_paths)""",
+    "cf_pages_functions_daily": """
+        INSERT INTO cf_pages_functions_daily (day, project, status, requests, errors, subrequests)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (day, project, status) DO UPDATE SET
+            requests    = GREATEST(cf_pages_functions_daily.requests,    EXCLUDED.requests),
+            errors      = GREATEST(cf_pages_functions_daily.errors,      EXCLUDED.errors),
+            subrequests = GREATEST(cf_pages_functions_daily.subrequests, EXCLUDED.subrequests)""",
+    # A re-inspection on the same sample day is a newer observation; overwrite.
+    "gsc_index_sample": """
+        INSERT INTO gsc_index_sample
+            (sample_day, site, page_class, url, verdict, coverage_state, indexing_state,
+             page_fetch_state, robots_state, last_crawl, google_canonical)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (sample_day, site, url) DO UPDATE SET
+            page_class = EXCLUDED.page_class, verdict = EXCLUDED.verdict,
+            coverage_state = EXCLUDED.coverage_state, indexing_state = EXCLUDED.indexing_state,
+            page_fetch_state = EXCLUDED.page_fetch_state, robots_state = EXCLUDED.robots_state,
+            last_crawl = EXCLUDED.last_crawl, google_canonical = EXCLUDED.google_canonical""",
 }
 
 # Idempotent, run after DDL. CREATE TABLE IF NOT EXISTS cannot reshape a table

@@ -9,8 +9,8 @@ Sources with absent credentials are skipped, not fatal.
   /ready  -> 503 until the schema is ensured and the loop is running (readiness)
 """
 import datetime as dt, http.server, json, os, threading, time, traceback
-from . import store, publish as publish_mod
-from .sources import github_traffic, gsc, cf_rum
+from . import store, publish as publish_mod, config
+from .sources import github_traffic, gsc, cf_rum, cf_edge, gsc_index
 
 STATE = {"started": False, "collected": False, "last": None}
 
@@ -60,6 +60,7 @@ def run_cycle(dsn):
         for site in _gsc_sites():
             _run(dsn, results, f"gsc:{site}",
                  lambda site=site: gsc.collect(sa, site, days=int(_env("GSC_DAYS", "7"))))
+        _run_index_sample(dsn, results, sa)
     else:
         print("gsc: no GSC_SA_JSON, skipped", flush=True)
     cf = _env("CF_ANALYTICS_TOKEN")
@@ -67,10 +68,49 @@ def run_cycle(dsn):
         _run(dsn, results, "cf_rum",
              lambda: cf_rum.collect(cf, _env("CF_ACCOUNT_ID", ""),
                                     days=int(_env("CF_DAYS", "3"))))
+        _run_edge(dsn, results, cf)
     else:
         print("cf_rum: no CF_ANALYTICS_TOKEN, skipped", flush=True)
     _publish_dashboard(dsn, results)
     return results
+
+
+def _edge_days(dsn):
+    """Cloudflare retains the edge dataset ~32 days. An empty table means a
+    first run (or a rebuilt database): take everything still retained, then
+    settle to the short overlapping window every other source uses."""
+    if store.table_is_empty(dsn, "cf_edge_daily"):
+        return int(_env("CF_EDGE_BACKFILL_DAYS", "32"))
+    return int(_env("CF_EDGE_DAYS", "3"))
+
+def _run_edge(dsn, results, cf):
+    zones = config.parse_pairs(_env("CF_ZONES"))
+    if not zones:
+        print("cf_edge: no CF_ZONES, skipped", flush=True)
+        return
+    days = _edge_days(dsn)
+    classes = config.parse_spec(_env("CF_PATH_CLASSES"))
+    _run(dsn, results, "cf_edge",
+         lambda: cf_edge.collect(cf, zones, path_classes=classes, days=days))
+    _run(dsn, results, "cf_pages_functions",
+         lambda: cf_edge.collect_pages_functions(cf, _env("CF_ACCOUNT_ID", ""), days=days))
+
+def _run_index_sample(dsn, results, sa):
+    """URL Inspection is quota-bound (2000/day) and slow (seconds per URL), so
+    the sample runs on its own cadence, paced off its last successful run
+    rather than the calendar -- a missed week samples on the next cycle."""
+    spec = config.parse_spec(_env("GSC_INDEX_SAMPLE"))
+    if not spec:
+        print("gsc_index: no GSC_INDEX_SAMPLE, skipped", flush=True)
+        return
+    every_h = float(_env("GSC_INDEX_EVERY_DAYS", "7")) * 24
+    age = store.last_success_age_hours(dsn, "gsc_index")
+    # One hour of slack: the daily cycle drifts a little around RUN_AT_UTC_HOUR.
+    if age is not None and age < every_h - 1:
+        print(f"gsc_index: last sample {age / 24:.1f}d ago, next after {every_h / 24:.0f}d, skipped", flush=True)
+        return
+    _run(dsn, results, "gsc_index", lambda: gsc_index.collect(sa, {
+        site: [(prefix, int(n)) for prefix, n in classes] for site, classes in spec.items()}))
 
 
 def _publish_dashboard(dsn, results):
