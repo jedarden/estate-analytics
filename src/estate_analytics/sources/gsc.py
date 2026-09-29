@@ -7,10 +7,10 @@ from ..http import get_json
 SCOPE = "https://www.googleapis.com/auth/webmasters"
 API = "https://www.googleapis.com/webmasters/v3"
 
-def _token(sa):
+def _token(sa, scope=SCOPE):
     now = int(time.time())
     assertion = jwt.encode(
-        {"iss": sa["client_email"], "scope": SCOPE, "aud": sa["token_uri"],
+        {"iss": sa["client_email"], "scope": scope, "aud": sa["token_uri"],
          "iat": now, "exp": now + 3600},
         sa["private_key"], algorithm="RS256")
     import urllib.request

@@ -20,6 +20,7 @@ of duplicating them:
 | Google Search Console (armed; needs SA key) | trailing 7 days | `gsc_daily` | `(site, day, page, query)` |
 | Cloudflare Web Analytics RUM (armed; needs token) | trailing 3 days | `cf_rum_daily` | `(day, host, path, referer_host)` |
 | Cloudflare edge requests, zone-scoped, client-facing only (needs token with Zone Analytics: Read + `CF_ZONES`) | trailing 3 days; 32 on first run | `cf_edge_daily` (crawler classes), `cf_googlebot_paths_daily` (Googlebot by path class), `cf_pages_functions_daily` | `(day, host, agent_class, status_class)` / `(day, host, path_class, status_class)` / `(day, project, status)` |
+| Google Analytics 4 (needs `GA4_PROPERTIES`; reuses the Search Console SA) | trailing 7 days, overwritten (GA revises recent days) | `ga4_daily` (channel/source/country), `ga4_pages_daily` | `(property, day, channel, source, country)` / `(property, day, host, path)` |
 | Search Console URL Inspection sample (needs SA key + `GSC_INDEX_SAMPLE`) | weekly, fixed hash-stable sample per page class | `gsc_index_sample` | `(sample_day, site, url)` |
 
 The edge source filters `requestSource: "eyeball"` unconditionally. Cloudflare's
@@ -49,6 +50,8 @@ because GitHub retains 14 days).
 | `CF_EDGE_DAYS` / `CF_EDGE_BACKFILL_DAYS` | no (3 / 32) | edge window; the backfill window applies while `cf_edge_daily` is empty |
 | `GSC_INDEX_SAMPLE` | optional | `sc-domain:x=/prefix/:N,...;sc-domain:y=...` — URLs per page class to inspect; enables the weekly sample |
 | `GSC_INDEX_EVERY_DAYS` | no (7) | sample cadence, paced off the last successful `gsc_index` run |
+| `GA4_PROPERTIES` | optional | `label=propertyId,...` (e.g. `halfonadouble.com=123456789`); enables GA4. The `GSC_SA_JSON` identity needs Viewer on each property and the Analytics Data API enabled in its GCP project |
+| `GA4_DAYS` | no (7) | GA4 window |
 | `RUN_AT_UTC_HOUR` | no (5) | daily run hour, UTC |
 | `DEST_S3_BUCKET` / `DEST_S3_ACCESS_KEY_ID` / `DEST_S3_SECRET_ACCESS_KEY` / `DEST_S3_ENDPOINT` | optional | Garage bucket for the dashboard panel; absent = publish skipped |
 | `DEST_S3_PREFIX` | no (`estate-analytics`) | bucket prefix; datasets land at `<prefix>/data/*.json` |
@@ -71,6 +74,9 @@ Image `ronaldraygun/estate-analytics:<semver>` built by the `estate-analytics-bu
 Argo WorkflowTemplate on iad-ci (VERSION auto-bump flow). Manifests live in
 `jedarden/declarative-config` — `k8s/ardenone-cluster/estate-analytics/` plus the
 CNPG `Database`/role/ExternalSecret in `k8s/ardenone-cluster/cnpg/`.
+
+From codinghome, `scripts/ga4-query.py` (`properties`, `report`, `realtime`) queries
+GA4 directly with the same service-account key as `gsc-query.py`.
 
 Local dev: `pip install -r requirements-dev.txt && PYTHONPATH=src pytest tests/`
 

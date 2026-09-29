@@ -89,6 +89,27 @@ QUERIES = {
         JOIN (SELECT site, MAX(sample_day) AS sample_day FROM gsc_index_sample GROUP BY site) m
           ON m.site = s.site AND m.sample_day = s.sample_day
         ORDER BY s.site, s.page_class, s.url""",
+    # GA4 sessions by channel. Users are omitted on purpose: they are distinct
+    # counts per row and summing them across channels or days overcounts.
+    "ga4-traffic": """
+        SELECT property, day, channel, SUM(sessions) AS sessions,
+               SUM(engaged_sessions) AS engaged_sessions, SUM(page_views) AS page_views,
+               ROUND(SUM(engagement_sec)::numeric) AS engagement_sec
+        FROM ga4_daily
+        WHERE day >= CURRENT_DATE - INTERVAL '90 days'
+        GROUP BY property, day, channel ORDER BY property, day, channel""",
+    # Session share by country: ad RPMs are driven by US/UK/CA/AU traffic.
+    "ga4-countries": """
+        SELECT property, country, SUM(sessions) AS sessions, SUM(page_views) AS page_views
+        FROM ga4_daily
+        WHERE day >= CURRENT_DATE - INTERVAL '30 days'
+        GROUP BY property, country ORDER BY property, SUM(sessions) DESC""",
+    "ga4-pages": """
+        SELECT property, host, path, SUM(page_views) AS page_views,
+               ROUND((SUM(engagement_sec) / NULLIF(SUM(page_views), 0))::numeric, 1) AS engagement_sec_per_view
+        FROM ga4_pages_daily
+        WHERE day >= CURRENT_DATE - INTERVAL '90 days'
+        GROUP BY property, host, path ORDER BY property, SUM(page_views) DESC LIMIT 500""",
 }
 
 def _jsonable(v):
@@ -119,6 +140,7 @@ def build_meta(datasets):
             "repo_traffic": max((r["day"] for r in datasets["repo-traffic"]), default=None),
             "crawlers": max((r["day"] for r in datasets.get("crawlers", [])), default=None),
             "index_sample": max((r["sample_day"] for r in datasets.get("index-sample", [])), default=None),
+            "ga4": max((r["day"] for r in datasets.get("ga4-traffic", [])), default=None),
         },
     }
 

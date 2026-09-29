@@ -10,7 +10,7 @@ Sources with absent credentials are skipped, not fatal.
 """
 import datetime as dt, http.server, json, os, threading, time, traceback
 from . import store, publish as publish_mod, config
-from .sources import github_traffic, gsc, cf_rum, cf_edge, gsc_index
+from .sources import github_traffic, gsc, cf_rum, cf_edge, gsc_index, ga4
 
 STATE = {"started": False, "collected": False, "last": None}
 
@@ -61,6 +61,7 @@ def run_cycle(dsn):
             _run(dsn, results, f"gsc:{site}",
                  lambda site=site: gsc.collect(sa, site, days=int(_env("GSC_DAYS", "7"))))
         _run_index_sample(dsn, results, sa)
+        _run_ga4(dsn, results, sa)
     else:
         print("gsc: no GSC_SA_JSON, skipped", flush=True)
     cf = _env("CF_ANALYTICS_TOKEN")
@@ -94,6 +95,16 @@ def _run_edge(dsn, results, cf):
          lambda: cf_edge.collect(cf, zones, path_classes=classes, days=days))
     _run(dsn, results, "cf_pages_functions",
          lambda: cf_edge.collect_pages_functions(cf, _env("CF_ACCOUNT_ID", ""), days=days))
+
+def _run_ga4(dsn, results, sa):
+    """GA4 rides on the Search Console service account; it needs only the
+    property ids, and Viewer on each property granted in GA's own admin."""
+    props = config.parse_pairs(_env("GA4_PROPERTIES"))
+    if not props:
+        print("ga4: no GA4_PROPERTIES, skipped", flush=True)
+        return
+    _run(dsn, results, "ga4",
+         lambda: ga4.collect(sa, props, days=int(_env("GA4_DAYS", "7"))))
 
 def _run_index_sample(dsn, results, sa):
     """URL Inspection is quota-bound (2000/day) and slow (seconds per URL), so

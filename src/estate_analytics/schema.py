@@ -98,6 +98,32 @@ DDL = [
         google_canonical text        NOT NULL DEFAULT '',
         PRIMARY KEY (sample_day, site, url)
     )""",
+    # GA4, keyed by the property's label (the site host), not its numeric id.
+    # users columns are per-row distinct counts and do not sum across rows.
+    """CREATE TABLE IF NOT EXISTS ga4_daily (
+        property         text             NOT NULL,
+        day              date             NOT NULL,
+        channel          text             NOT NULL,
+        source           text             NOT NULL,
+        country          text             NOT NULL,
+        sessions         integer          NOT NULL,
+        engaged_sessions integer          NOT NULL,
+        total_users      integer          NOT NULL,
+        new_users        integer          NOT NULL,
+        page_views       integer          NOT NULL,
+        engagement_sec   double precision NOT NULL,
+        PRIMARY KEY (property, day, channel, source, country)
+    )""",
+    """CREATE TABLE IF NOT EXISTS ga4_pages_daily (
+        property       text             NOT NULL,
+        day            date             NOT NULL,
+        host           text             NOT NULL,
+        path           text             NOT NULL,
+        page_views     integer          NOT NULL,
+        active_users   integer          NOT NULL,
+        engagement_sec double precision NOT NULL,
+        PRIMARY KEY (property, day, host, path)
+    )""",
     """CREATE TABLE IF NOT EXISTS collect_runs (
         id            bigserial   PRIMARY KEY,
         started_at    timestamptz NOT NULL DEFAULT now(),
@@ -173,6 +199,24 @@ UPSERTS = {
             coverage_state = EXCLUDED.coverage_state, indexing_state = EXCLUDED.indexing_state,
             page_fetch_state = EXCLUDED.page_fetch_state, robots_state = EXCLUDED.robots_state,
             last_crawl = EXCLUDED.last_crawl, google_canonical = EXCLUDED.google_canonical""",
+    # Overwrite, not GREATEST: GA reprocesses recent days and its numbers can
+    # move down as well as up (late bot filtering, thresholding).
+    "ga4_daily": """
+        INSERT INTO ga4_daily
+            (property, day, channel, source, country, sessions, engaged_sessions,
+             total_users, new_users, page_views, engagement_sec)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (property, day, channel, source, country) DO UPDATE SET
+            sessions = EXCLUDED.sessions, engaged_sessions = EXCLUDED.engaged_sessions,
+            total_users = EXCLUDED.total_users, new_users = EXCLUDED.new_users,
+            page_views = EXCLUDED.page_views, engagement_sec = EXCLUDED.engagement_sec""",
+    "ga4_pages_daily": """
+        INSERT INTO ga4_pages_daily
+            (property, day, host, path, page_views, active_users, engagement_sec)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (property, day, host, path) DO UPDATE SET
+            page_views = EXCLUDED.page_views, active_users = EXCLUDED.active_users,
+            engagement_sec = EXCLUDED.engagement_sec""",
 }
 
 # Idempotent, run after DDL. CREATE TABLE IF NOT EXISTS cannot reshape a table

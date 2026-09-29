@@ -31,6 +31,12 @@ GitHub's 14-day retention.
       devimprint.com: Cloudflare keeps the edge dataset ~32 days, and indexed share per
       page class is the number their launch gates are written in.
 - [ ] Phase 6: panel sections for the Phase 5 datasets (dashboard-site repo)
+- [ ] Phase 7 (0.5.0): GA4 leg — sessions by channel/source/country and per-page views
+      and engagement, reusing the Search Console service account. The only source that
+      counts human sessions (RUM counts bot spikes as pageviews), and the unit the
+      halfonadouble.com ad-network gates are written in. Code shipped 2026-09-28; activates
+      when the SA holds Viewer on the property, the Analytics Data API is enabled in
+      `ardenone-analytics`, and `GA4_PROPERTIES` is set in declarative-config.
 
 ## Open questions
 None blocking. Grafana/dashboard surface is Phase 4 and undecided.
