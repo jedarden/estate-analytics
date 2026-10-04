@@ -89,6 +89,50 @@ QUERIES = {
         JOIN (SELECT site, MAX(sample_day) AS sample_day FROM gsc_index_sample GROUP BY site) m
           ON m.site = s.site AND m.sample_day = s.sample_day
         ORDER BY s.site, s.page_class, s.url""",
+    # Progress against the ad-network gates in halfonadouble.com's growth audit
+    # (docs/research/2026-09-12-pseo-growth-and-ad-monetization-audit.md s3.1):
+    # Journey by Mediavine at 1,000 sessions/month, Raptive at 25,000
+    # pageviews/month, and ad RPMs that depend on US/UK/CA/AU readers. Trailing
+    # 30 days of GA4, the only source that counts people rather than bot hits.
+    # Empty until GA4 is collecting.
+    "ga4-gates": """
+        SELECT property,
+               SUM(sessions) AS sessions,
+               SUM(sessions) FILTER (WHERE country IN
+                   ('United States','United Kingdom','Canada','Australia')) AS tier1_sessions,
+               SUM(page_views) AS page_views,
+               1000  AS journey_sessions_gate,
+               25000 AS raptive_pageviews_gate
+        FROM ga4_daily
+        WHERE day >= CURRENT_DATE - INTERVAL '30 days'
+        GROUP BY property ORDER BY property""",
+    # Indexed share per page class in each site's latest URL Inspection sample,
+    # against the audit's Phase 1 gate (>= 80% of the first tier indexed).
+    "index-gate": """
+        SELECT s.site, s.page_class, s.sample_day,
+               COUNT(*) AS urls,
+               COUNT(*) FILTER (WHERE s.verdict = 'PASS') AS indexed,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE s.verdict = 'PASS') / COUNT(*), 1) AS indexed_pct,
+               80 AS target_pct
+        FROM gsc_index_sample s
+        JOIN (SELECT site, MAX(sample_day) AS sample_day FROM gsc_index_sample GROUP BY site) m
+          ON m.site = s.site AND m.sample_day = s.sample_day
+        GROUP BY s.site, s.page_class, s.sample_day
+        ORDER BY s.site, s.page_class""",
+    # Striking distance: query/page pairs Google already shows on page 1-2
+    # (average position 8-20) with real impressions but almost no clicks. The
+    # cheapest search win there is: better title/description or one more
+    # internal link, not a new page. Broad head terms at position 70+ are
+    # excluded on purpose -- those need authority, not tweaks.
+    "striking-distance": """
+        SELECT site, page, query, SUM(clicks) AS clicks, SUM(impressions) AS impressions,
+               ROUND((SUM(position * impressions) / SUM(impressions))::numeric, 1) AS avg_position
+        FROM gsc_daily
+        WHERE day >= CURRENT_DATE - INTERVAL '28 days'
+        GROUP BY site, page, query
+        HAVING SUM(impressions) >= 5
+           AND SUM(position * impressions) / SUM(impressions) BETWEEN 8 AND 20
+        ORDER BY SUM(impressions) DESC LIMIT 200""",
     # GA4 sessions by channel. Users are omitted on purpose: they are distinct
     # counts per row and summing them across channels or days overcounts.
     "ga4-traffic": """
@@ -140,8 +184,7 @@ def build_meta(datasets):
             "repo_traffic": max((r["day"] for r in datasets["repo-traffic"]), default=None),
             "crawlers": max((r["day"] for r in datasets.get("crawlers", [])), default=None),
             "index_sample": max((r["sample_day"] for r in datasets.get("index-sample", [])), default=None),
-            "ga4": max((r["day"] for r in datasets.get("ga4-traffic", [])), default=None),
-        },
+            "ga4": max((r["day"] for r in datasets.get("ga4-traffic", [])), default=None),        },
     }
 
 def publish(conn, s3, bucket, prefix):

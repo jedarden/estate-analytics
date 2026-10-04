@@ -68,6 +68,20 @@ dashboard-site repo: its CI syncs the repo over the bucket while excluding
 credentials are absent and a publish failure never fails the cycle — the
 collection legs are the product, the panel is a view of them.
 
+### Decision datasets
+
+Three of the published datasets exist to be acted on, not just displayed:
+
+| Dataset | Answers | Source tables |
+|---|---|---|
+| `ga4-gates` | Are we at the ad-network gates? 1,000 sessions/month (Journey), 25,000 pageviews/month (Raptive), and how many sessions come from US/UK/CA/AU. Trailing 30 days. | `ga4_daily` |
+| `index-gate` | What share of each page class is indexed in the latest URL Inspection sample, against the 80% Phase 1 target. | `gsc_index_sample` |
+| `striking-distance` | Which query/page pairs already rank 8-20 with >= 5 impressions (last 28 days) -- the cheapest search wins. | `gsc_daily` |
+
+The thresholds come from halfonadouble.com's growth audit
+(`docs/research/2026-09-12-pseo-growth-and-ad-monetization-audit.md`, section 3.1)
+and are literals in `publish.py`; change them in both places.
+
 ## Deploy
 
 Image `ronaldraygun/estate-analytics:<semver>` built by the `estate-analytics-build`

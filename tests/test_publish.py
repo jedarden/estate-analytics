@@ -71,3 +71,15 @@ def test_referrer_query_is_snapshot_keyed_not_summed_across_days():
 
 def test_meta_is_json_serialisable():
     json.dumps(publish.build_meta(publish.collect_datasets(_conn())))
+
+
+def test_gate_datasets_are_published_with_their_thresholds():
+    """The gate numbers come from the halfonadouble.com growth audit s3.1. If a
+    threshold moves there, it must move here -- the panel compares against these."""
+    for name in ("ga4-gates", "index-gate", "striking-distance"):
+        assert name in publish.QUERIES
+    assert "1000  AS journey_sessions_gate" in publish.QUERIES["ga4-gates"]
+    assert "25000 AS raptive_pageviews_gate" in publish.QUERIES["ga4-gates"]
+    assert "80 AS target_pct" in publish.QUERIES["index-gate"]
+    # Head terms at position 70+ need authority, not tweaks: keep them out.
+    assert "BETWEEN 8 AND 20" in publish.QUERIES["striking-distance"]

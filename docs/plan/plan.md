@@ -37,6 +37,8 @@ GitHub's 14-day retention.
       halfonadouble.com ad-network gates are written in. Code shipped 2026-09-28; activates
       when the SA holds Viewer on the property, the Analytics Data API is enabled in
       `ardenone-analytics`, and `GA4_PROPERTIES` is set in declarative-config.
+      Also publishes `ga4-gates`, `index-gate` and `striking-distance` (decision datasets;
+      SQL verified against Postgres 16 with edge-case rows, 2026-10-03).
 
 ## Open questions
 None blocking. Grafana/dashboard surface is Phase 4 and undecided.
