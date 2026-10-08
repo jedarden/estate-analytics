@@ -32,13 +32,20 @@ GitHub's 14-day retention.
       page class is the number their launch gates are written in.
 - [ ] Phase 6: panel sections for the Phase 5 datasets (dashboard-site repo)
 - [ ] Phase 7 (0.5.0): GA4 leg — sessions by channel/source/country and per-page views
-      and engagement, reusing the Search Console service account. The only source that
-      counts human sessions (RUM counts bot spikes as pageviews), and the unit the
+      and engagement, reusing the Search Console service account. It measures website
+      sessions (which can include testing), the unit the
       halfonadouble.com ad-network gates are written in. Code shipped 2026-09-28; activates
       when the SA holds Viewer on the property, the Analytics Data API is enabled in
       `ardenone-analytics`, and `GA4_PROPERTIES` is set in declarative-config.
       Also publishes `ga4-gates`, `index-gate` and `striking-distance` (decision datasets;
       SQL verified against Postgres 16 with edge-case rows, 2026-10-03).
+      Half on a Double activation (`estate-ce5b3d90`): property `557214664` and stream
+      `G-YW2M6BSW0G` verified through the Admin and Data APIs on 2026-10-08 UTC.
+      GitOps commit `a5632706` enables a 28-day lookback using the existing daily schedule.
+      Direct reporting returned 77 sessions and 108 page views for October 3–6,
+      including 4 Organic Search sessions; this is a short baseline, not evidence of growth.
+      [Activation evidence](../analytics/2026-10-07-hoad-ga4-activation.json).
+      First scheduled GA4 collection and dashboard publication remain to be verified.
 
 ## Open questions
 None blocking. Grafana/dashboard surface is Phase 4 and undecided.

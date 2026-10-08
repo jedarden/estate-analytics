@@ -1,0 +1,398 @@
+{
+  "captured_at": "2026-10-08T02:38:28.295664+00:00",
+  "property_id": "557214664",
+  "property_name": "Half On A Double",
+  "property_created_at": "2026-10-03T13:08:54.487Z",
+  "measurement_id": "G-YW2M6BSW0G",
+  "stream_default_uri": "https://halfonadouble.com",
+  "timezone": "America/New_York",
+  "report_request": {
+    "dateRanges": [
+      {
+        "startDate": "2026-09-09",
+        "endDate": "2026-10-06"
+      }
+    ],
+    "dimensions": [
+      {
+        "name": "date"
+      },
+      {
+        "name": "sessionDefaultChannelGroup"
+      }
+    ],
+    "metrics": [
+      {
+        "name": "sessions"
+      },
+      {
+        "name": "screenPageViews"
+      },
+      {
+        "name": "engagedSessions"
+      }
+    ],
+    "dimensionFilter": {
+      "filter": {
+        "fieldName": "hostName",
+        "stringFilter": {
+          "matchType": "EXACT",
+          "value": "halfonadouble.com"
+        }
+      }
+    },
+    "limit": 10000
+  },
+  "report_response": {
+    "dimensionHeaders": [
+      {
+        "name": "date"
+      },
+      {
+        "name": "sessionDefaultChannelGroup"
+      }
+    ],
+    "metricHeaders": [
+      {
+        "name": "sessions",
+        "type": "TYPE_INTEGER"
+      },
+      {
+        "name": "screenPageViews",
+        "type": "TYPE_INTEGER"
+      },
+      {
+        "name": "engagedSessions",
+        "type": "TYPE_INTEGER"
+      }
+    ],
+    "rows": [
+      {
+        "dimensionValues": [
+          {
+            "value": "20261004"
+          },
+          {
+            "value": "Direct"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "22"
+          },
+          {
+            "value": "27"
+          },
+          {
+            "value": "1"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20261006"
+          },
+          {
+            "value": "Direct"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "22"
+          },
+          {
+            "value": "35"
+          },
+          {
+            "value": "6"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20261005"
+          },
+          {
+            "value": "Direct"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "16"
+          },
+          {
+            "value": "17"
+          },
+          {
+            "value": "1"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20261003"
+          },
+          {
+            "value": "Direct"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7"
+          },
+          {
+            "value": "7"
+          },
+          {
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20261006"
+          },
+          {
+            "value": "AI Assistant"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "3"
+          },
+          {
+            "value": "9"
+          },
+          {
+            "value": "1"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20261005"
+          },
+          {
+            "value": "AI Assistant"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "2"
+          },
+          {
+            "value": "2"
+          },
+          {
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20261006"
+          },
+          {
+            "value": "Organic Search"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "2"
+          },
+          {
+            "value": "3"
+          },
+          {
+            "value": "1"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20261003"
+          },
+          {
+            "value": "Organic Search"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "1"
+          },
+          {
+            "value": "6"
+          },
+          {
+            "value": "1"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20261004"
+          },
+          {
+            "value": "Organic Search"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "1"
+          },
+          {
+            "value": "1"
+          },
+          {
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20261006"
+          },
+          {
+            "value": "Unassigned"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "1"
+          },
+          {
+            "value": "1"
+          },
+          {
+            "value": "0"
+          }
+        ]
+      }
+    ],
+    "rowCount": 10,
+    "metadata": {
+      "currencyCode": "USD",
+      "timeZone": "America/New_York"
+    },
+    "kind": "analyticsData#runReport"
+  },
+  "rows": [
+    {
+      "date": "20261004",
+      "channel": "Direct",
+      "sessions": 22,
+      "page_views": 27,
+      "engaged_sessions": 1
+    },
+    {
+      "date": "20261006",
+      "channel": "Direct",
+      "sessions": 22,
+      "page_views": 35,
+      "engaged_sessions": 6
+    },
+    {
+      "date": "20261005",
+      "channel": "Direct",
+      "sessions": 16,
+      "page_views": 17,
+      "engaged_sessions": 1
+    },
+    {
+      "date": "20261003",
+      "channel": "Direct",
+      "sessions": 7,
+      "page_views": 7,
+      "engaged_sessions": 0
+    },
+    {
+      "date": "20261006",
+      "channel": "AI Assistant",
+      "sessions": 3,
+      "page_views": 9,
+      "engaged_sessions": 1
+    },
+    {
+      "date": "20261005",
+      "channel": "AI Assistant",
+      "sessions": 2,
+      "page_views": 2,
+      "engaged_sessions": 0
+    },
+    {
+      "date": "20261006",
+      "channel": "Organic Search",
+      "sessions": 2,
+      "page_views": 3,
+      "engaged_sessions": 1
+    },
+    {
+      "date": "20261003",
+      "channel": "Organic Search",
+      "sessions": 1,
+      "page_views": 6,
+      "engaged_sessions": 1
+    },
+    {
+      "date": "20261004",
+      "channel": "Organic Search",
+      "sessions": 1,
+      "page_views": 1,
+      "engaged_sessions": 0
+    },
+    {
+      "date": "20261006",
+      "channel": "Unassigned",
+      "sessions": 1,
+      "page_views": 1,
+      "engaged_sessions": 0
+    }
+  ],
+  "totals": {
+    "sessions": 77,
+    "page_views": 108,
+    "engaged_sessions": 11
+  },
+  "limitations": [
+    "Property created October 3; a 28-day request does not establish a 28-day measured history.",
+    "Recent days may be revised by GA4.",
+    "Direct visits can include agent testing; GA4 sessions do not establish verified human or qualified traffic.",
+    "Organic Search attribution is GA4 reporting, not equivalent to Search Console clicks."
+  ],
+  "deployment_owner": "estate-ce5b3d90",
+  "publication_status": "pending existing daily collector cycle after GitOps configuration",
+  "collector_verification": {
+    "command": "ga4.collect with property557214664, days27, today2026-10-06; read-only live API; no database writes",
+    "daily_rows": 23,
+    "page_rows": 63,
+    "sessions": 77,
+    "page_views": 108,
+    "organic_search_sessions": 4,
+    "page_report_views": 108,
+    "result": "passed"
+  },
+  "deployment": {
+    "repository": "declarative-config",
+    "commit": "a563270612f502190c07d258c9fa0381580c3594",
+    "manifest": "k8s/ardenone-cluster/estate-analytics/configmap.yml",
+    "application": "estate-analytics-ns-ardenone-cluster",
+    "properties": "halfonadouble.com=557214664",
+    "lookback_days": 28,
+    "scheduled_run_hour_utc": 5,
+    "reconciliation": "Synced at delivered revision; replacement collector Ready; final Argo health read pending",
+    "next_expected_cycle": "2026-10-08T05:00:00Z through 2026-10-08T05:05:00Z, followed by collection/publication",
+    "ready_pod": "estate-analytics-5787d489cd-6vkxn",
+    "pod_started_at": "2026-10-08T02:51:24Z",
+    "pod_ready_observed_at": "2026-10-08T02:52:25Z",
+    "reloader_applied": true
+  }
+}
