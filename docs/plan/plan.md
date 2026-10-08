@@ -45,7 +45,15 @@ GitHub's 14-day retention.
       Direct reporting returned 77 sessions and 108 page views for October 3–6,
       including 4 Organic Search sessions; this is a short baseline, not evidence of growth.
       [Activation evidence](../analytics/2026-10-07-hoad-ga4-activation.json).
-      First scheduled GA4 collection and dashboard publication remain to be verified.
+      First scheduled GA4 collection succeeded on October 8 at 05:02:34 UTC;
+      dashboard datasets were generated at 05:02:41 UTC. Argo is Synced/Healthy,
+      the collector is Ready, and the live tracking tag sends accepted page views.
+      Published October 3–7 records contain 127 sessions and 170 page views,
+      including 5 Organic Search sessions; recent data may revise and include testing.
+      [Confirmation evidence](../analytics/2026-10-08-hoad-analytics-confirmation.json).
+      Cloudflare edge and Functions collection remains impaired because initial
+      backfill queries exceed provider time-range limits; those gaps are separate
+      from the completed Half on a Double GA4 activation.
 
 ## Open questions
 None blocking. Grafana/dashboard surface is Phase 4 and undecided.

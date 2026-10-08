@@ -1,0 +1,159 @@
+{
+  "captured_at": "2026-10-08T10:55:20.342710+00:00",
+  "owning_bead": "estate-ce5b3d90",
+  "related_growth_bead": "hoad-a029ff53",
+  "property": "halfonadouble.com",
+  "numeric_property_id": "557214664",
+  "measurement_id": "G-YW2M6BSW0G",
+  "result": "GA4 activation acceptance passed; GSC and RUM collection also working. Cloudflare edge/functions collection remains impaired.",
+  "publication": {
+    "generated_at": "2026-10-08T05:02:41.363724+00:00",
+    "latest_ga4_day": "2026-10-08",
+    "files_http_ok": 9,
+    "ga4_rows": 18,
+    "live_configuration": {
+      "GA4_PROPERTIES": "halfonadouble.com=557214664",
+      "GA4_DAYS": "28"
+    }
+  },
+  "source_runs": {
+    "cf_pages_functions": {
+      "source": "cf_pages_functions",
+      "status": "error",
+      "rows_upserted": 0,
+      "finished_at": "2026-10-08T05:02:41.042029+00:00"
+    },
+    "cf_edge": {
+      "source": "cf_edge",
+      "status": "error",
+      "rows_upserted": 0,
+      "finished_at": "2026-10-08T05:02:37.773791+00:00"
+    },
+    "cf_rum": {
+      "source": "cf_rum",
+      "status": "ok",
+      "rows_upserted": 154,
+      "finished_at": "2026-10-08T05:02:37.433507+00:00"
+    },
+    "ga4": {
+      "source": "ga4",
+      "status": "ok",
+      "rows_upserted": 136,
+      "finished_at": "2026-10-08T05:02:34.669662+00:00"
+    },
+    "gsc:sc-domain:halfonadouble.com": {
+      "source": "gsc:sc-domain:halfonadouble.com",
+      "status": "ok",
+      "rows_upserted": 73,
+      "finished_at": "2026-10-08T05:02:33.361635+00:00"
+    },
+    "gsc_index": {
+      "source": "gsc_index",
+      "status": "ok",
+      "rows_upserted": 92,
+      "finished_at": "2026-10-04T23:06:59.644937+00:00"
+    }
+  },
+  "ga4_recorded_counts": {
+    "all_returned_dates": {
+      "start": "2026-10-03",
+      "end": "2026-10-08",
+      "includes_partial_current_day": true,
+      "sessions": 130,
+      "page_views": 173,
+      "engaged_sessions": 11,
+      "organic_search_sessions": 5
+    },
+    "through_previous_calendar_day": {
+      "start": "2026-10-03",
+      "end": "2026-10-07",
+      "sessions": 127,
+      "page_views": 170,
+      "engaged_sessions": 11,
+      "organic_search_sessions": 5
+    }
+  },
+  "browser_tracking": {
+    "checked_at": "2026-10-08T10:52:38.992Z",
+    "url": "https://halfonadouble.com/",
+    "synthetic_test_page_loads": 1,
+    "requests": [
+      {
+        "host": "www.googletagmanager.com",
+        "path": "/gtag/js",
+        "measurement_id": "G-YW2M6BSW0G",
+        "event": null,
+        "method": "GET"
+      },
+      {
+        "host": "www.google-analytics.com",
+        "path": "/g/collect",
+        "measurement_id": "G-YW2M6BSW0G",
+        "event": "page_view",
+        "method": "POST"
+      }
+    ],
+    "responses": [
+      {
+        "host": "www.googletagmanager.com",
+        "path": "/gtag/js",
+        "status": 200
+      },
+      {
+        "host": "www.google-analytics.com",
+        "path": "/g/collect",
+        "status": 204
+      }
+    ],
+    "page_status": 200,
+    "client_state": {
+      "has_gtag": false,
+      "data_layer": [],
+      "ga_script": true
+    }
+  },
+  "deployment": {
+    "application": "estate-analytics-ns-ardenone-cluster",
+    "gitops_configuration_commit": "a563270612f502190c07d258c9fa0381580c3594",
+    "observed_sync_revision": "8a6b79aa821f6a281b5e720e464dd6c967ed98b9",
+    "sync": "Synced",
+    "health": "Healthy",
+    "operation": "Succeeded",
+    "reconciled_at": "2026-10-08T10:47:51Z",
+    "ready_replicas": 1,
+    "pod": "estate-analytics-5787d489cd-6vkxn",
+    "container_restarts": 0
+  },
+  "remaining_source_gaps": {
+    "cf_edge": "Provider rejects the 32-day initial backfill plus elapsed current day: zone query maximum is 30 days. Latest error is quota/time-range, not GA4 access.",
+    "cf_pages_functions": "Provider rejects the 32-day backfill plus elapsed current day: account query maximum is 32 days.",
+    "empty_datasets": [
+      "crawlers",
+      "googlebot-paths",
+      "pages-functions"
+    ],
+    "repair_scope": "Not changed in this GA4 activation/confirmation. Requires separately admitted application outcome; do not interpret unavailable data as zero requests."
+  },
+  "checks": {
+    "dashboard_read": "All nine requested/necessary datasets HTTP200; independent parent arithmetic matches returned GA4 rows.",
+    "browser": "Bench Playwright1.59.1: homepage HTTP200, matching gtag script HTTP200, page_view sent to matching measurement ID and Google collect response HTTP204.",
+    "cluster": "Read-only kubectl proxy: deployment1/1 Ready, running pod with zero restarts; Argo Synced/Healthy/Succeeded.",
+    "collector_logs": "GA4136 upserts, GSC73 for this site, RUM154 account-wide; published JSON generated05:02:41Z.",
+    "site_or_application_source_tests": "Not rerun: configuration is already delivered; this change records verification/docs/checkpoint only."
+  },
+  "limitations": [
+    "GA4 counts can include user/agent testing; recent dates may revise. These observations establish collection, not ranking growth or a count of verified people.",
+    "One synthetic homepage page_view was emitted during this verification at10:52:39UTC, after the05UTC dashboard snapshot; it may appear in a future collection.",
+    "GSC published query rows omit anonymized queries and are not property totals. RUM counts beacons, not human sessions.",
+    "Current publish success is logged after runs.json is uploaded; the prior publish entry in runs.json does not make current meta generation stale."
+  ],
+  "evidence_sha256": {
+    "publication/meta.json": "34bebb112d8406e78af1d9c22f48f88c68d4c8385f97b426249c47d3d57d45a8",
+    "publication/runs.json": "bd9f381bb95a766ceb051df9ea4a8b5ec979177648042db43843299d2ac5a97b",
+    "publication/ga4-traffic.json": "6ebcd52a6248924a2b57cdb6a1f16ffaaf6fdbcdd895d2ab7396ec73781b0657",
+    "publication/fetch-status.json": "d76154d31920060042902701303222b95319171ed91e7f11ba306b580adae33c",
+    "browser-tracking.json": "5b37945bedf16ca0f3a1d2d3715787f1e4ff63365f8eec351281fd203dff7caf",
+    "argo.json": "91a67d389a1eb3dba0e440fb427445773d53bfdabb78eec8eb8c5aab9f13135b",
+    "workload.json": "f084dd07c6f563c01e61422959afa384f1f18917fadee8ff3cab74456cdba44a"
+  }
+}
