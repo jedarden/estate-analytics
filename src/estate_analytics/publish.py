@@ -13,6 +13,28 @@ Publishing is skipped, not fatal, when S3 credentials are absent -- the same
 discipline the optional collection sources follow.
 """
 import datetime as dt, decimal, json
+from .sources import ga4
+
+# GA4 rows with the automation flag (see ga4.py). Every GA4 session or pageview
+# query reads from this instead of ga4_daily, so raw data stays stored and the
+# filter is applied only when a dataset is built. Column names are the same in
+# every GA4 dataset:
+#   engaged_sessions            GA's engaged sessions, all cells. Lead with this:
+#                               it needs no classifier.
+#   sessions_excl_automation    sessions outside flagged cells.
+#   page_views_excl_automation  page views outside flagged cells.
+#   automated_sessions          sessions in flagged cells.
+#   raw_sessions, raw_page_views  unfiltered GA totals, for comparison only.
+# The bare names `sessions` and `page_views` are deliberately not published, so
+# an old reader fails instead of silently comparing bot traffic with a gate.
+GA4_CLASSIFIED = f"({ga4.CLASSIFIED_DAILY_SQL}) g"
+GA4_MEASURES = """
+               SUM(engaged_sessions) AS engaged_sessions,
+               COALESCE(SUM(sessions) FILTER (WHERE NOT automated), 0) AS sessions_excl_automation,
+               COALESCE(SUM(page_views) FILTER (WHERE NOT automated), 0) AS page_views_excl_automation,
+               COALESCE(SUM(sessions) FILTER (WHERE automated), 0) AS automated_sessions,
+               SUM(sessions) AS raw_sessions,
+               SUM(page_views) AS raw_page_views"""
 
 # Each entry becomes <prefix>/data/<name>.json.
 #
@@ -93,17 +115,17 @@ QUERIES = {
     # (docs/research/2026-09-12-pseo-growth-and-ad-monetization-audit.md s3.1):
     # Journey by Mediavine at 1,000 sessions/month, Raptive at 25,000
     # pageviews/month, and ad RPMs that depend on US/UK/CA/AU readers. Trailing
-    # 30 days of GA4, the only source that counts people rather than bot hits.
-    # Empty until GA4 is collecting.
-    "ga4-gates": """
-        SELECT property,
-               SUM(sessions) AS sessions,
-               SUM(sessions) FILTER (WHERE country IN
-                   ('United States','United Kingdom','Canada','Australia')) AS tier1_sessions,
-               SUM(page_views) AS page_views,
+    # 30 days of GA4. The gates compare against sessions_excl_automation and
+    # page_views_excl_automation, never the raw totals: in October 2026 about
+    # 90% of raw sessions were flagged automation. Empty until GA4 is collecting.
+    "ga4-gates": f"""
+        SELECT property,{GA4_MEASURES},
+               COALESCE(SUM(sessions) FILTER (WHERE NOT automated AND country IN
+                   ('United States','United Kingdom','Canada','Australia')), 0)
+                   AS tier1_sessions_excl_automation,
                1000  AS journey_sessions_gate,
                25000 AS raptive_pageviews_gate
-        FROM ga4_daily
+        FROM {GA4_CLASSIFIED}
         WHERE day >= CURRENT_DATE - INTERVAL '30 days'
         GROUP BY property ORDER BY property""",
     # Indexed share per page class in each site's latest URL Inspection sample,
@@ -135,19 +157,33 @@ QUERIES = {
         ORDER BY SUM(impressions) DESC LIMIT 200""",
     # GA4 sessions by channel. Users are omitted on purpose: they are distinct
     # counts per row and summing them across channels or days overcounts.
-    "ga4-traffic": """
-        SELECT property, day, channel, SUM(sessions) AS sessions,
-               SUM(engaged_sessions) AS engaged_sessions, SUM(page_views) AS page_views,
+    "ga4-traffic": f"""
+        SELECT property, day, channel,{GA4_MEASURES},
                ROUND(SUM(engagement_sec)::numeric) AS engagement_sec
-        FROM ga4_daily
+        FROM {GA4_CLASSIFIED}
         WHERE day >= CURRENT_DATE - INTERVAL '90 days'
         GROUP BY property, day, channel ORDER BY property, day, channel""",
-    # Session share by country: ad RPMs are driven by US/UK/CA/AU traffic.
-    "ga4-countries": """
-        SELECT property, country, SUM(sessions) AS sessions, SUM(page_views) AS page_views
-        FROM ga4_daily
+    # Audience by country: ad RPMs are driven by US/UK/CA/AU traffic. Ranked by
+    # engaged sessions, so a bot-heavy country does not top the list.
+    "ga4-countries": f"""
+        SELECT property, country,{GA4_MEASURES}
+        FROM {GA4_CLASSIFIED}
         WHERE day >= CURRENT_DATE - INTERVAL '30 days'
-        GROUP BY property, country ORDER BY property, SUM(sessions) DESC""",
+        GROUP BY property, country
+        ORDER BY property, SUM(engaged_sessions) DESC,
+                 COALESCE(SUM(sessions) FILTER (WHERE NOT automated), 0) DESC, country""",
+    # The cells the automation classifier flagged, so every exclusion can be
+    # checked against GA itself. One row per (property, day, country, channel).
+    "ga4-automation": f"""
+        SELECT property, day, country, channel, SUM(sessions) AS sessions,
+               SUM(engaged_sessions) AS engaged_sessions, SUM(page_views) AS page_views
+        FROM {GA4_CLASSIFIED}
+        WHERE automated AND day >= CURRENT_DATE - INTERVAL '90 days'
+        GROUP BY property, day, country, channel
+        ORDER BY property, day, country, channel""",
+    # Per-page views are NOT filtered: ga4_pages_daily has no country or channel,
+    # so the classifier cannot see it. Flagged sessions have one view each, so
+    # they rarely reach this top 500, but read page_views here as raw.
     "ga4-pages": """
         SELECT property, host, path, SUM(page_views) AS page_views,
                ROUND((SUM(engagement_sec) / NULLIF(SUM(page_views), 0))::numeric, 1) AS engagement_sec_per_view
@@ -184,7 +220,9 @@ def build_meta(datasets):
             "repo_traffic": max((r["day"] for r in datasets["repo-traffic"]), default=None),
             "crawlers": max((r["day"] for r in datasets.get("crawlers", [])), default=None),
             "index_sample": max((r["sample_day"] for r in datasets.get("index-sample", [])), default=None),
-            "ga4": max((r["day"] for r in datasets.get("ga4-traffic", [])), default=None),        },
+            "ga4": max((r["day"] for r in datasets.get("ga4-traffic", [])), default=None),
+        },
+        "ga4_automation_rule": ga4.AUTOMATION_RULE,
     }
 
 def publish(conn, s3, bucket, prefix):

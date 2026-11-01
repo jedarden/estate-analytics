@@ -8,13 +8,19 @@ Admin API enabled.
 
 Usage:
   ga4-query.py properties                       # properties this identity can read (Admin API)
-  ga4-query.py report PROPERTY_ID [DAYS] [DIM...]   # default: 28 days by date
+  ga4-query.py report PROPERTY_ID [DAYS] [DIM...] [--exclude-automation]
+                                                # default: 28 days by date
   ga4-query.py realtime PROPERTY_ID             # last 30 min by page -- verifies the tag fires
 
 Metrics are sessions, screenPageViews, engagedSessions. Users are left out: they
 are not additive across the rows this prints.
+
+--exclude-automation applies the collector's automation classifier
+(estate_analytics.sources.ga4.is_automated): cells of date x country x channel
+with at least AUTOMATION_MIN_SESSIONS sessions and at most
+AUTOMATION_MAX_ENGAGED_PCT% engaged are dropped, and a footer lists them.
 """
-import json, pathlib, sys, urllib.error
+import collections, json, pathlib, sys, urllib.error
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 from estate_analytics.http import get_json
 from estate_analytics.sources import ga4, gsc
@@ -39,16 +45,51 @@ def properties(tok):
         for p in acct.get("propertySummaries", []):
             print(f"{p['property'].split('/')[1]:>12}  {p['displayName']}  ({acct.get('displayName', '')})")
 
-def report(tok, pid, days=28, dims=None):
+# The classifier's cell in GA4 Data API dimension names. The property is fixed
+# per call. The collector sums sessionSource rows into the same cell.
+CELL_DIMS = ["date", "country", "sessionDefaultChannelGroup"]
+
+def flagged_cells(tok, pid, start, end):
+    """{cell: (sessions, views, engaged)} for every flagged cell. Totals come
+    from a query on the cell dimensions alone. Sessions by an event-scoped
+    dimension such as pagePath do not add up to the cell's sessions."""
+    rows = ga4.run_report(tok, pid, CELL_DIMS, ["sessions", "screenPageViews", "engagedSessions"],
+                          start, end)
+    return {tuple(r[:3]): (int(r[3]), int(r[4]), int(r[5])) for r in rows
+            if ga4.is_automated(int(r[3]), int(r[5]))}
+
+def report(tok, pid, days=28, dims=None, exclude_automation=False):
     import datetime as dt
     dims = dims or ["date"]
     metrics = ["sessions", "screenPageViews", "engagedSessions"]
     today = dt.date.today()
-    rows = ga4.run_report(tok, pid, dims, metrics, today - dt.timedelta(days=days), today)
+    start = today - dt.timedelta(days=days)
+    if not exclude_automation:
+        rows = ga4.run_report(tok, pid, dims, metrics, start, today)
+    else:
+        flagged = flagged_cells(tok, pid, start, today)
+        query_dims = list(dict.fromkeys(dims + CELL_DIMS))
+        cell_at = [query_dims.index(d) for d in CELL_DIMS]
+        dim_at = [query_dims.index(d) for d in dims]
+        kept = collections.defaultdict(lambda: [0, 0, 0])
+        for r in ga4.run_report(tok, pid, query_dims, metrics, start, today):
+            if tuple(r[i] for i in cell_at) in flagged:
+                continue
+            acc = kept[tuple(r[i] for i in dim_at)]
+            for j, v in enumerate(r[len(query_dims):]):
+                acc[j] += int(v)
+        rows = [list(k) + [str(v) for v in m] for k, m in kept.items()]
     rows.sort()
     print("  ".join(dims), "|", "  ".join(metrics))
     for r in rows:
         print("  ".join(r[:len(dims)]), "|", "  ".join(f"{v:>6}" for v in r[len(dims):]))
+    if exclude_automation:
+        s, v, e = (sum(t[i] for t in flagged.values()) for i in range(3))
+        print(f"# excluded {len(flagged)} automation cells ({' x '.join(CELL_DIMS)}): "
+              f"{s} sessions, {v} views, {e} engaged. Rule: >= {ga4.AUTOMATION_MIN_SESSIONS} "
+              f"sessions and <= {ga4.AUTOMATION_MAX_ENGAGED_PCT}% engaged")
+        for cell, (cs, cv, ce) in sorted(flagged.items()):
+            print(f"#   {'  '.join(cell)}  sessions={cs} engaged={ce}")
 
 def realtime(tok, pid):
     body = {"dimensions": [{"name": "unifiedScreenName"}, {"name": "country"}],
@@ -63,6 +104,8 @@ def realtime(tok, pid):
         print(f"{m[0]:>5} views {m[1]:>4} users  {d[1]:<16} {d[0]}")
 
 def main(argv):
+    exclude = "--exclude-automation" in argv
+    argv = [a for a in argv if a != "--exclude-automation"]
     if not argv or argv[0] not in ("properties", "report", "realtime"):
         sys.exit(__doc__)
     tok = token()
@@ -72,7 +115,7 @@ def main(argv):
         realtime(tok, argv[1])
     else:
         days = int(argv[2]) if len(argv) > 2 else 28
-        report(tok, argv[1], days, argv[3:] or None)
+        report(tok, argv[1], days, argv[3:] or None, exclude_automation=exclude)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

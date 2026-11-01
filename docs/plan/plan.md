@@ -54,6 +54,15 @@ GitHub's 14-day retention.
       Cloudflare edge and Functions collection remains impaired because initial
       backfill queries exceed provider time-range limits; those gaps are separate
       from the completed Half on a Double GA4 activation.
+- [ ] Phase 8 (0.6.0): GA4 automation filter (`estate-50310c42`). From 2026-09-28 to
+      10-27, 91% of Half on a Double's raw GA4 sessions came from bot cells with
+      near-zero engagement, mostly Singapore / Direct. The filter flags each
+      (property, day, country, channel) cell with at least 10 sessions and at
+      most 5% engaged, using no country list. It is applied when datasets are
+      read. GA4 datasets lead with engaged sessions, add totals excluding
+      automation, keep raw totals for comparison, and `ga4-gates` compares the
+      filtered figures. Raw rows remain stored. See the README section "GA4
+      automation filter".
 
 ## Open questions
 None blocking. Grafana/dashboard surface is Phase 4 and undecided.

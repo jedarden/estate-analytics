@@ -74,13 +74,51 @@ Three of the published datasets exist to be acted on, not just displayed:
 
 | Dataset | Answers | Source tables |
 |---|---|---|
-| `ga4-gates` | Are we at the ad-network gates? 1,000 sessions/month (Journey), 25,000 pageviews/month (Raptive), and how many sessions come from US/UK/CA/AU. Trailing 30 days. | `ga4_daily` |
+| `ga4-gates` | Are we at the ad-network gates? 1,000 sessions/month (Journey), 25,000 pageviews/month (Raptive), and how many sessions come from US/UK/CA/AU. Trailing 30 days, compared using the figures that exclude automation (below). | `ga4_daily` |
 | `index-gate` | What share of each page class is indexed in the latest URL Inspection sample, against the 80% Phase 1 target. | `gsc_index_sample` |
 | `striking-distance` | Which query/page pairs already rank 8-20 with >= 5 impressions (last 28 days) -- the cheapest search wins. | `gsc_daily` |
 
 The thresholds come from halfonadouble.com's growth audit
 (`docs/research/2026-09-12-pseo-growth-and-ad-monetization-audit.md`, section 3.1)
 and are literals in `publish.py`; change them in both places.
+
+### GA4 automation filter
+
+GA4 only filters known crawlers, so headless browsers that run the tag still
+count as sessions. On halfonadouble.com from 2026-09-28 to 10-27, raw GA4
+reported 10,279 sessions. Of these, 9,363 (91%) were in flagged cells, mostly
+Singapore / Direct with 7 engaged sessions out of 9,325. Excluding automation
+leaves 916 sessions and 332 engaged sessions. Raw data puts the site past the
+1,000-session Journey gate, while the filtered figure keeps it short of it.
+
+**Rule** (`sources/ga4.py`, `is_automated` and `CLASSIFIED_DAILY_SQL`): sum every
+source in a *(property, day, country, channel)* cell. Flag the cell when it has
+at least `AUTOMATION_MIN_SESSIONS = 10` sessions **and** at most
+`AUTOMATION_MAX_ENGAGED_PCT = 5`% of them engaged. Near-zero engagement is the
+bot signal. The floor protects small cells, because a few bounces from one
+country in a day are noise. Real low-volume cells, such as Canada at about 4
+sessions a day and 60% engaged, are never flagged. The rule names no country.
+
+Flagging happens when data is read, never when it is stored: `ga4_daily` keeps
+every raw row, and changing the constants reclassifies history on the next
+publish. The GA4 datasets (`ga4-gates`, `ga4-traffic` and `ga4-countries`) all
+publish the same columns:
+
+| Column | Meaning |
+|---|---|
+| `engaged_sessions` | GA's engaged sessions. This is the lead figure because it needs no classifier. |
+| `sessions_excl_automation`, `page_views_excl_automation` | Totals outside flagged cells. The gates use these. |
+| `automated_sessions` | Sessions in flagged cells. |
+| `raw_sessions`, `raw_page_views` | Unfiltered GA totals, kept for comparison. |
+
+Bare `sessions` and `page_views` columns are not published, so a reader built on
+the earlier schema fails instead of comparing bot traffic with a gate.
+`ga4-countries` is ranked by engaged sessions. `ga4-automation` lists every
+flagged cell from the last 90 days, so each exclusion can be checked in GA.
+`meta.json` carries the rule in force as `ga4_automation_rule`. `ga4-pages`
+remains unfiltered: `ga4_pages_daily` has no country or channel. To see the
+same filter directly in GA, run
+`scripts/ga4-query.py report PROPERTY_ID [DAYS] [DIM...] --exclude-automation`.
 
 ## Deploy
 
@@ -90,7 +128,8 @@ Argo WorkflowTemplate on iad-ci (VERSION auto-bump flow). Manifests live in
 CNPG `Database`/role/ExternalSecret in `k8s/ardenone-cluster/cnpg/`.
 
 From codinghome, `scripts/ga4-query.py` (`properties`, `report`, `realtime`) queries
-GA4 directly with the same service-account key as `gsc-query.py`.
+GA4 directly with the same service-account key as `gsc-query.py`; `report
+--exclude-automation` applies the automation filter above.
 
 Local dev: `pip install -r requirements-dev.txt && PYTHONPATH=src pytest tests/`
 
